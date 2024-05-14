@@ -3,6 +3,7 @@ const cors = require("cors");
 const app = express();
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
 const port = process.env.PORT || 5000;
@@ -16,6 +17,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cauvj2c.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -32,7 +34,18 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-
+    const itemsCollection = client.db("studyLab").collection("assignments");
+    app.get("/items", async (req, res) => {
+      const cursor = itemsCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    app.post("/items", async (req, res) => {
+      const newitems = req.body;
+      console.log(newitems);
+      const result = await itemsCollection.insertOne(newitems);
+      res.send(result);
+    });
     //auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -61,7 +74,7 @@ async function run() {
     );
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);

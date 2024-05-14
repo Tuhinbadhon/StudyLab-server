@@ -4,7 +4,7 @@ const app = express();
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const port = process.env.PORT || 5000;
 
@@ -40,10 +40,41 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+    app.get("/items/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await itemsCollection.findOne(query);
+      res.send(result);
+    });
+    app.put("/items/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedItems = req.body;
+      const items = {
+        $set: {
+          image: updatedItems.image,
+          item_title: updatedItems.item_title,
+          category: updatedItems.category,
+          description: updatedItems.description,
+          marks: updatedItems.marks,
+
+          userImg: updatedItems.userImg,
+          dueDate: updatedItems.dueDate,
+        },
+      };
+      const result = await itemsCollection.updateOne(filter, items);
+      res.send(result);
+    });
     app.post("/items", async (req, res) => {
       const newitems = req.body;
       console.log(newitems);
       const result = await itemsCollection.insertOne(newitems);
+      res.send(result);
+    });
+    app.delete("/items/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await itemsCollection.deleteOne(query);
       res.send(result);
     });
     //auth related api

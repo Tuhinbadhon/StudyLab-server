@@ -35,6 +35,10 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     const itemsCollection = client.db("studyLab").collection("assignments");
+    const itemsAttemptedCollection = client
+      .db("studyLab")
+      .collection("attempted");
+
     app.get("/items", async (req, res) => {
       const cursor = itemsCollection.find();
       const result = await cursor.toArray();
@@ -77,6 +81,21 @@ async function run() {
       const result = await itemsCollection.deleteOne(query);
       res.send(result);
     });
+
+    //attempted related api
+
+    app.get("/attemptedItems", async (req, res) => {
+      const cursor = itemsAttemptedCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.post("/attemptedItems", async (req, res) => {
+      const newitems = req.body;
+      console.log(newitems);
+      const result = await itemsAttemptedCollection.insertOne(newitems);
+      res.send(result);
+    });
     //auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -96,6 +115,25 @@ async function run() {
       const user = req.body;
       console.log("loging out", user);
       res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+    const verifyToken = (req, res, next) => {
+      const token = req.cookies.token;
+      if (!token) {
+        return res.status(401).send("Access Denied");
+      }
+      try {
+        const verified = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        req.user = verified;
+        next();
+      } catch (err) {
+        res.status(400).send("Invalid Token");
+      }
+    };
+    app.get("/attemptedItems", verifyToken, async (req, res) => {
+      const userEmail = req.user.email;
+      const cursor = itemsAttemptedCollection.find({ userEmail });
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection

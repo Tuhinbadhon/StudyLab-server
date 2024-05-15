@@ -12,7 +12,7 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "https://bdstudylab.netlify.app"],
     credentials: true,
   })
 );
@@ -29,11 +29,16 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production" ? true : false,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
 
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const itemsCollection = client.db("studyLab").collection("assignments");
     const itemsAttemptedCollection = client
       .db("studyLab")
@@ -103,41 +108,20 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1hr",
       });
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-      });
+      res.cookie("token", token, cookieOptions);
       res.send({ success: true });
     });
 
     app.post("/logout", async (req, res) => {
       const user = req.body;
       console.log("loging out", user);
-      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
-    });
-    const verifyToken = (req, res, next) => {
-      const token = req.cookies.token;
-      if (!token) {
-        return res.status(401).send("Access Denied");
-      }
-      try {
-        const verified = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        req.user = verified;
-        next();
-      } catch (err) {
-        res.status(400).send("Invalid Token");
-      }
-    };
-    app.get("/attemptedItems", verifyToken, async (req, res) => {
-      const userEmail = req.user.email;
-      const cursor = itemsAttemptedCollection.find({ userEmail });
-      const result = await cursor.toArray();
-      res.send(result);
+      res
+        .clearCookie("token", { ...cookieOptions, maxAge: 0 })
+        .send({ success: true });
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
